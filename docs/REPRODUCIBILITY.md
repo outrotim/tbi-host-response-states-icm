@@ -1,0 +1,42 @@
+# Reproducibility record
+
+The four scripts in `analysis/` are **byte-identical** to the versions that produced the
+published tables and figures. Their SHA-256 values are:
+
+```
+884279ade1db07c4258b98052c2f15a43469feb3af3ce1bf85b89c979af25944  analysis/21_strict_48h_72h_icu_transitions_and_transfusion_v2.py
+3eac6ba7eee8cb2a3812052a00e683fdb95c29910ad9ce9a8d4217288c9f3df5  analysis/22_ecg_confounding_and_4db_biomarkers_v2.py
+965091f9ab68a7b766419bb71b05757cbe84adf514bc6a3ad811309756ecefc5  analysis/23_exploratory_ct_lax_and_fixed_lmtp_v2.py
+c0498c02d182467f98e390e4eb7e9cdf3ec0e57079b360e1501e5a0661c9820d  analysis/24_render_icm_v2_3figures.py
+```
+
+Frozen classifier parameters:
+
+```
+0410cac81115c7f37998860b97a2278214982250d9e62b8ebd84fe6fe4b42c50  model/locked_mimic_tbi_endotype_k3.json
+```
+
+## Reference outputs
+
+Regenerating the analysis on the same credentialed databases reproduces these files
+byte-for-byte. Compare your run against the hashes below.
+
+```
+319a85c60f69535128d731e35841f91875c8e1ce08b8a900b4ef03aaf623e8d4  reference_outputs/V2_ECG_Clock_and_Confounder_Coverage.json
+7491abce6c118abc9ecc6cafccaffc23399ca810becf233c9e17c5fe6cc7bf78  reference_outputs/V2_TableB1_MIMIC_ECG_Confounding_and_Timing_Audit.csv
+cbcf84f6751d05a2be48aaa55fd9ec7ee65b21a1f39f459fcfc30eccea1e9087  reference_outputs/V2_TableB2_4DB_Biomarkers_FullDenominators_and_Holm.csv
+03967dfeba1dd532be279e5955ddca8e11785349f1a726c510d4cd21e550421f  reference_outputs/V2_TableD1_MutuallyExclusive_ICU_Landmark_Flow.csv
+e136c705bc529cd161655985c44d4994a55bc229c339235183e1d0b4462660bd  reference_outputs/V2_TableD2_Strict_InICU_Landmark_Survival_Models.csv
+c596865025fd4bf89b0a6dcd9704d9038b3fa31478eb8fdc27b3295778ff029e  reference_outputs/V2_TableD3_US_BloodProduct_Exposure_and_Adjusted_Models.csv
+f0ed5e6a7c0e8955a27df78754fa951c7fd1c5f351c2f71cee5e20ae04c44095  reference_outputs/V2_TableS4A_HeadCT_StrictTiming_and_CompetingFlow.csv
+5712014b0a6e05f62ab7b28aa3e5dfd8e9b02d0b81d4a791360af8437d9bdcbd  reference_outputs/V2_TableS4B_HeadCT_Corrected_Exploratory_Summary.csv
+dde8597b09241bb63a736726a454c2bddbb58cb2f10229fc4d9f7e9c8a79aea8  reference_outputs/V2_TableS5A_LAx_and_MinLAxBin_Complete16Rows.csv
+f23453e3df7581a2a8ae0ba47ffef7e656f0076aa0cef5de80d9f979f90c291c  reference_outputs/V2_TableS5B_Corrected_ShiftedHistory_LMTP_Comparison.csv
+```
+
+## Verification performed before release
+
+- Independent re-execution of scripts 21, 22 and 23 in an isolated directory reproduced
+  **all ten V2 output tables byte-identically** (SHA-256 equality, not approximate).
+- The four radiology-parser unit tests embedded in script 23 were executed and passed 4/4.
+- No credentials, patient identifiers or subject-level rows are present in this repository.

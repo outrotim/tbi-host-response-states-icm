@@ -1,0 +1,5 @@
+estimator_and_policy,n,All_rd,All_rd_p,E1_rd,E1_rd_p,E2_rd,E2_rd_p,E3_rd,E3_rd_p,E2_minus_E1,E2_minus_E1_p,E3_minus_E1,E3_minus_E1_p
+Corrected shifted-history ICE (unpenalized OLS): +5 mmHg when 0–6h CPP < 65 mmHg,199,-1.37 (-3.47 to +0.18),0.084,-1.08 (-3.22 to +0.44),0.192,-1.69 (-4.87 to +0.38),0.112,-1.50 (-4.60 to +0.68),0.208,-0.61 (-3.62 to +1.36),0.612,-0.42 (-3.05 to +1.84),0.724
+Corrected shifted-history ICE (Ridge shrinkage): +5 mmHg when 0–6h CPP < 65 mmHg,199,-0.94 (-2.64 to +0.04),0.068,-0.88 (-2.25 to +0.08),0.072,-0.91 (-3.68 to +0.08),0.084,-1.10 (-3.16 to +0.34),0.124,-0.03 (-2.50 to +0.46),0.864,-0.22 (-1.66 to +0.63),0.668
+Corrected shifted-history ICE (unpenalized OLS): +5 mmHg when 0–6h CPP < 70 mmHg,199,-2.23 (-5.35 to +0.19),0.084,-1.58 (-4.66 to +0.67),0.192,-3.02 (-8.30 to +0.79),0.132,-2.44 (-7.34 to +1.31),0.26,-1.44 (-6.67 to +2.30),0.468,-0.86 (-4.84 to +3.29),0.692
+"Corrected shifted-history ICE (unpenalized OLS, E3 Hgb<10 vs >=10): +5 mmHg when 0–24h MAP < 85 mmHg",1173,+1.49 (-1.81 to +4.16),0.324,+2.05 (-0.86 to +4.43),0.164,+0.73 (-3.07 to +3.97),0.696,—,,-1.33 (-3.23 to +0.61),0.232,—,
