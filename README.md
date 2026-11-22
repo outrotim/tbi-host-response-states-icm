@@ -55,8 +55,8 @@ See **`docs/DATA_ACCESS.md`** for the access procedure and the exact input files
 ## Quick start (for a credentialed user)
 
 ```bash
-git clone https://github.com/<owner>/<repo>.git
-cd <repo>
+git clone https://github.com/outrotim/tbi-host-response-states-icm.git
+cd tbi-host-response-states-icm
 pip install -r requirements.txt      # Python 3.11+ recommended
 
 # 1. Obtain the four credentialed databases and build the derived cohorts with your own
