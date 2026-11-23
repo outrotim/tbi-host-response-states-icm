@@ -22,10 +22,10 @@ docs/                Data access, reproducibility and portability notes
 
 | Script | Produces |
 |---|---|
-| `analysis/21_strict_48h_72h_icu_transitions_and_transfusion_v2.py` | Mutually exclusive ICU-landmark flow (D1), strict in-ICU landmark survival models (D2), US blood-product exposure and adjusted models (D3) |
-| `analysis/22_ecg_confounding_and_4db_biomarkers_v2.py` | 12-lead ECG confounding/timing audit (B1), four-cohort biomarker denominators and Holm adjustment (B2), ECG clock/confounder coverage JSON |
-| `analysis/23_exploratory_ct_lax_and_fixed_lmtp_v2.py` | Head-CT strict-timing and competing flow (S4A) and corrected exploratory summary (S4B); LAx / minimum-LAx 5-mmHg CPP bin 16-row table (S5A); corrected shifted-history sequential ICE estimator (S5B) |
-| `analysis/24_render_icm_v2_3figures.py` | Main Figures 1–3 |
+| `analysis/31_strict_48h_72h_icu_transitions_and_transfusion_v3.py` | Mutually exclusive ICU-landmark flow (D1), strict in-ICU landmark survival models (D2), US blood-product exposure and adjusted models (D3) |
+| `analysis/32_ecg_confounding_and_4db_biomarkers_v3.py` | 12-lead ECG confounding/timing audit (B1), four-cohort biomarker denominators and Holm adjustment (B2), unified 112-test Holm ledger (B3), ECG clock/confounder coverage JSON |
+| `analysis/33_exploratory_ct_lax_and_verified_ice_v3.py` | Head-CT strict-timing and competing flow (S4A) and exploratory summary (S4B); LAx / minimum-LAx 5-mmHg CPP bin 16-row table (S5A); observed-past sequential-ICE comparison with a known-truth factoral unit test (S5B) |
+| `analysis/34_render_icm_v3_3figures.py` | Main Figures 1–3 |
 
 Every published number is reproduced **byte-for-byte** by these scripts (see
 `docs/REPRODUCIBILITY.md`).
@@ -63,10 +63,10 @@ pip install -r requirements.txt      # Python 3.11+ recommended
 #    extraction pipeline (see docs/DATA_ACCESS.md for the required schemas).
 # 2. Point the scripts at your local paths (see docs/PORTABILITY.md).
 # 3. Run in order:
-python analysis/21_strict_48h_72h_icu_transitions_and_transfusion_v2.py
-python analysis/22_ecg_confounding_and_4db_biomarkers_v2.py
-python analysis/23_exploratory_ct_lax_and_fixed_lmtp_v2.py
-python analysis/24_render_icm_v2_3figures.py
+python analysis/31_strict_48h_72h_icu_transitions_and_transfusion_v3.py
+python analysis/32_ecg_confounding_and_4db_biomarkers_v3.py
+python analysis/33_exploratory_ct_lax_and_verified_ice_v3.py
+python analysis/34_render_icm_v3_3figures.py
 ```
 
 Compare your outputs against `reference_outputs/` using the SHA-256 values listed in
@@ -85,8 +85,11 @@ Compare your outputs against `reference_outputs/` using the SHA-256 values liste
    coagulation factors are extracted and used for adjusted and stratified models.
 4. **Negation-aware radiology parsing** — clause-level rules with intra-sentence line-break
    unwrapping, extracranial bleeds excluded, and four built-in unit tests executed at runtime.
-5. **Corrected longitudinal estimation** — the sequential-ICE estimator substitutes the shifted
-   exposure history `d(A_s)` for `s < t`, and reports both unpenalised OLS and Ridge variants.
+5. **Verified longitudinal estimation** — the observed-past sequential-ICE estimator shifts the
+   current-step exposure `d(A_t)` while leaving earlier exposures to be shifted at their own
+   backward-recursion steps, reports unpenalised OLS and Ridge variants, and is validated against
+   a known-truth two-period factorial construction (`|estimate − truth| < 1e-9`) before any
+   clinical cohort is fitted.
 
 ---
 

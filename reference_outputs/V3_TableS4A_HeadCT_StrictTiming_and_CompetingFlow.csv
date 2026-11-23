@@ -1,0 +1,4 @@
+state,n_cohort,no_baseline_ct_n,baseline_ct_no_strict_icu_repeat_n,no_repeat_died_le72h_hospital_total_n,no_repeat_died_in_icu_le72h_n,no_repeat_died_post_icu_le72h_n,no_repeat_survived_72h_left_icu_le72h_n,strict_icu_post_6lab_repeat_ct_n,repeat_ct_radiographic_progression_n_pct,repeat_ct_bleed_only_n_pct,repeat_ct_mass_only_n_pct
+E1,2111,976,484,28,20,8,374,651,112/651 (17.2%),104/651 (16.0%),23/651 (3.5%)
+E2,546,238,117,12,11,1,76,191,41/191 (21.5%),36/191 (18.8%),10/191 (5.2%)
+E3,826,416,180,34,30,4,106,230,51/230 (22.2%),46/230 (20.0%),7/230 (3.0%)

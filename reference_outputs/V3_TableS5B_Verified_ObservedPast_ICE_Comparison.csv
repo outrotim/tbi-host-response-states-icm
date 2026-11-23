@@ -1,0 +1,5 @@
+estimator_and_policy,n,All_rd,All_rd_p,E1_rd,E1_rd_p,E2_rd,E2_rd_p,E3_rd,E3_rd_p,E2_minus_E1,E2_minus_E1_p,E3_minus_E1,E3_minus_E1_p
+Observed-past sequential ICE (unpenalized OLS): +5 mmHg when post-6lab 0–6h CPP < 65 mmHg,199,-1.12 (-3.25 to +0.19),0.096,-0.86 (-3.05 to +0.71),0.236,-1.47 (-4.57 to +0.41),0.132,-1.17 (-3.91 to +0.62),0.236,-0.61 (-3.50 to +1.41),0.608,-0.31 (-2.87 to +1.70),0.756
+Observed-past sequential ICE (Ridge shrinkage): +5 mmHg when post-6lab 0–6h CPP < 65 mmHg,199,-0.65 (-2.33 to +0.10),0.084,-0.62 (-2.03 to +0.14),0.116,-0.65 (-3.52 to +0.10),0.092,-0.70 (-2.81 to +0.26),0.132,-0.02 (-2.39 to +0.38),0.888,-0.07 (-1.42 to +0.59),0.832
+Observed-past sequential ICE (unpenalized OLS): +5 mmHg when post-6lab 0–6h CPP < 70 mmHg,199,-1.83 (-4.75 to +0.38),0.092,-1.25 (-4.39 to +1.04),0.256,-2.62 (-7.70 to +1.12),0.128,-1.90 (-6.18 to +1.62),0.308,-1.37 (-6.46 to +2.29),0.512,-0.65 (-4.62 to +3.34),0.728
+"Observed-past sequential ICE (unpenalized OLS, E3 Hgb<10 vs >=10): +5 mmHg when 0–24h ICU MAP < 85 mmHg",1173,+0.93 (-1.01 to +2.59),0.324,+1.53 (-0.23 to +3.08),0.088,+0.12 (-2.28 to +2.46),0.904,—,,-1.40 (-3.31 to +0.52),0.188,—,

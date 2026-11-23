@@ -1,3 +1,0 @@
-analysis,n_analyzed,estimate_1,estimate_2,p_or_note
-"Strict post-confirmed-6lab in-ICU repeat Head CT progression (all 3 states, index-CT covariates)",1072,E2 vs E1 aOR 1.38 (0.92–2.06),E3 vs E1 aOR 1.29 (0.88–1.89),"2-df Global P=0.199; NLP cross-rule audit agreement 73.0% (PPV 72.0%, no blinded neuroradiologist reference)"
-"Strict 72h ICU-resident survivors (E3 vs E1, post-6lab repeat CT -> post-72h hospital death, IPW refit per bootstrap)",385,TE +12.13 pp (+5.41 to +19.82); NDE +11.83 pp (+5.27 to +19.88),NIE +0.30 pp (-1.07 to +1.93),Exploratory descriptive decomposition only; early death/exit before repeat CT and report-level misclassification preclude excluding intracranial pathways

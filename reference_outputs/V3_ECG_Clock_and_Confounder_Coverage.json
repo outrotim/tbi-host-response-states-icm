@@ -1,0 +1,29 @@
+{
+  "n_valid_qtcf_stays": 1255,
+  "median_age_by_state": {
+    "E1": 72.0,
+    "E2": 70.0,
+    "E3": 76.0
+  },
+  "ecg_median_hours_from_icu": -2.43,
+  "ecg_before_icu_n": 916,
+  "ecg_strictly_before_final_6lab_draw_n": 811,
+  "ecg_simultaneous_with_final_6lab_draw_n": 13,
+  "ecg_before_or_at_final_6lab_draw_n": 824,
+  "ecg_strictly_after_final_6lab_draw_n": 431,
+  "ecg_strictly_after_all_6lab_storetime_n": 299,
+  "qtcf_post_storetime_n299_E3_vs_E1_aOR_CI": "0.99 (0.46\u20132.13)",
+  "qtcf_post_storetime_n299_p": 0.9895106605860573,
+  "ecg_at_or_after_hosp_admit_n": 441,
+  "narrow_clean_qrs_n": 871,
+  "pre_ecg_systemic_qt_drug_n": 52,
+  "prior_hosp_adm_n": 262,
+  "hr_bpm_E2_vs_E1_diff": 4.28,
+  "hr_bpm_E2_vs_E1_ci": [
+    0.95,
+    7.61
+  ],
+  "hr_bpm_E2_vs_E1_p": 0.011777174827583206,
+  "qtcf_base_E3_vs_E1_holm_112": 4.9880073440592085e-05,
+  "qtcf_base_E3_vs_E1_holm_96": 4.189926169009735e-05
+}

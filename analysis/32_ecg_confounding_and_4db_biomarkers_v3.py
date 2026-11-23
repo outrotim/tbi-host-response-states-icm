@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """
-ICM v2 — Pillar B (Supportive Simultaneous Multi-Organ & 12-Lead ECG Context):
-1. MIMIC-IV 12-lead ECG valid-first selection, exact clock audit vs 6-lab draws and hospital/ICU entry,
-   and pre-ECG cardiac comorbidity, electrolyte (K, Mg, Ca), QT-drug, and narrow-QRS sinus confounding tests.
+ICM v3 — Pillar B (Supportive Simultaneous Multi-Organ & 12-Lead ECG Context):
+1. MIMIC-IV 12-lead ECG valid-first selection (n=1,255), exact specimen-draw AND result-release
+   (`storetime`) clock audit, systemic-only pre-ECG QT-drug extraction (excluding ophthalmic/otic/topical
+   routes), exact n=1,255 ventricular rate regression, and non-nested pre-ECG confounding/rhythm stress-tests.
 2. Four-database Fibrinogen (<200 and <150 mg/dL), aPTT, Lactate (>=2.0 mmol/L across all 4 cohorts),
-   NLR, Anion Gap, and CRP with exact tested denominators, separate continuous vs threshold tests,
-   and full-family Holm adjustment across ALL global and pairwise tests.
+   US NLR, Anion Gap, and CRP with exact tested denominators and a SINGLE UNIFIED 112-TEST HOLM LEDGER
+   covering all 88 continuous/chi2 biomarker tests + 8 base ECG tests + 16 binary Fisher threshold tests
+   (with 96-test Holm preserved side-by-side in V3_TableB3 for complete auditability).
 
-Strictly read-only on all upstream datasets and prior submission directories.
-Writes exclusively to icm_submission_v2_20261123/tables/.
+Strictly read-only on all upstream datasets and all prior submission / review directories.
+Writes exclusively to icm_submission_v3_20261123/tables/.
 """
+import json
 from pathlib import Path
 
 import numpy as np
@@ -25,7 +28,7 @@ P1_DIR = ROOT / "derived/closed_loop_v1/revision_gatekeepers_v1/p1_endpoints_and
 HIR_DIR = ROOT / "derived/closed_loop_v1/transatlantic_4db_v1/hirid"
 CPP_PRIV = ROOT / "clinical_strengthening_20261119/cpp/private"
 
-OUT_DIR = ROOT / "icm_submission_v2_20261123/tables"
+OUT_DIR = ROOT / "icm_submission_v3_20261123/tables"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -56,30 +59,38 @@ def med_iqr(s: pd.Series, dec: int = 1) -> str:
     return f"{q50:.{dec}f} ({q25:.{dec}f}–{q75:.{dec}f})"
 
 
-def extract_last_6lab_clock_mimic(m_df: pd.DataFrame) -> dict:
+def extract_6lab_draw_and_release_clocks_mimic(m_df: pd.DataFrame):
     MAP_M = {
         51301: "wbc", 51755: "wbc", 51265: "plt", 53189: "plt",
         51222: "hgb", 50811: "hgb", 51237: "inr", 51675: "inr",
         50882: "bicarb", 50803: "bicarb", 50931: "glu", 50809: "glu", 52569: "glu",
     }
     RANGES = {"wbc": (0.2, 120), "plt": (5, 1500), "hgb": (3, 24), "inr": (0.5, 15), "bicarb": (5, 50), "glu": (20, 1200)}
-    ml = pd.read_csv(CPP_PRIV / "mimic_labs.csv.gz", usecols=["subject_id", "hadm_id", "itemid", "charttime", "valuenum", "labevent_id"], low_memory=False)
+    cols_avail = pd.read_csv(CPP_PRIV / "mimic_labs.csv.gz", nrows=1).columns.tolist()
+    use_c = [c for c in ["subject_id", "hadm_id", "itemid", "charttime", "storetime", "valuenum", "labevent_id"] if c in cols_avail]
+    ml = pd.read_csv(CPP_PRIV / "mimic_labs.csv.gz", usecols=use_c, low_memory=False)
     ml = ml.merge(m_df[["stay_id", "subject_id", "hadm_id", "intime"]], on="subject_id", suffixes=("", "_src"))
     ml = ml[ml["hadm_id"].isna() | (ml["hadm_id"] == ml["hadm_id_src"])].copy()
     ml["feat"] = ml["itemid"].map(MAP_M)
     ml = ml[ml["feat"].notna()].copy()
-    ml["h"] = (pd.to_datetime(ml["charttime"]) - pd.to_datetime(ml["intime"])).dt.total_seconds() / 3600.0
+    in_dt = pd.to_datetime(ml["intime"])
+    ml["h"] = (pd.to_datetime(ml["charttime"]) - in_dt).dt.total_seconds() / 3600.0
+    if "storetime" in ml.columns:
+        st_h = (pd.to_datetime(ml["storetime"], errors="coerce") - in_dt).dt.total_seconds() / 3600.0
+        ml["h_avail"] = np.maximum(ml["h"], st_h.fillna(ml["h"]))
+    else:
+        ml["h_avail"] = ml["h"]
     ml["v"] = pd.to_numeric(ml["valuenum"], errors="coerce")
     ml = ml[ml["h"].between(-24.0, 6.0) & ml["v"].between(ml["feat"].map({k: v[0] for k, v in RANGES.items()}), ml["feat"].map({k: v[1] for k, v in RANGES.items()}))].copy()
     ml["dist_abs"] = ml["h"].abs()
     ml["post"] = ml["h"] > 0
     ml = ml.sort_values(["stay_id", "feat", "dist_abs", "post", "labevent_id"]).drop_duplicates(["stay_id", "feat"])
-    return ml.groupby("stay_id")["h"].max().to_dict()
+    return ml.groupby("stay_id")["h"].max().to_dict(), ml.groupby("stay_id")["h_avail"].max().to_dict()
 
 
 def build_mimic_ecg_with_pre_ecg_confounders(m_df: pd.DataFrame):
-    print("[1/3] Building MIMIC-IV 12-lead ECG cohort with pre-ECG comorbidities, electrolytes, QT drugs, and rhythm QC...", flush=True)
-    last_lab_h = extract_last_6lab_clock_mimic(m_df)
+    print("[1/3] Building MIMIC-IV 12-lead ECG cohort with pre-ECG comorbidities, electrolytes, systemic QT drugs, and rhythm QC...", flush=True)
+    last_draw_h, last_avail_h = extract_6lab_draw_and_release_clocks_mimic(m_df)
 
     ecg = pd.read_csv(EXT_MIMIC / "mimic_iv_ecg/machine_measurements.csv", low_memory=False)
     rep_cols = [c for c in ecg.columns if c.startswith("report_")]
@@ -112,22 +123,21 @@ def build_mimic_ecg_with_pre_ecg_confounders(m_df: pd.DataFrame):
     rep_txt = cand[rep_cols].fillna("").agg(" | ".join, axis=1).str.lower()
     cand["rhythm_af_pace_flag"] = rep_txt.str.contains(r"atrial fibrillation|atrial flutter|paced|pacemaker|ventricular rhythm").astype(int)
     cand["quality_artifact_flag"] = rep_txt.str.contains(r"poor data quality|artifact|lead reversal|misplaced|suspect").astype(int)
-    cand["ecg_sinus_tachy"] = rep_txt.str.contains("sinus tachycardia").astype(float)
 
     cand["abs_dt"] = cand["dt_h"].abs()
     cand["post_icu"] = cand["dt_h"] > 0
-    # Filter to valid QTcF BEFORE selecting nearest ECG per stay (fixes 1,254 -> 1,255!)
     w24 = cand[cand["qtcf_ms"].notna()].sort_values(["stay_id", "abs_dt", "post_icu", "study_id"]).drop_duplicates("stay_id", keep="first").copy()
     w24["ph"] = w24["endotype_k3"].str[:2]
     w24["qtcf_prolonged"] = (((w24["male"] == 1) & (w24["qtcf_ms"] >= 450.0)) | ((w24["male"] == 0) & (w24["qtcf_ms"] >= 460.0))).astype(float)
-    w24["qtcb_ge470"] = (w24["qtcb_ms"] >= 470.0).astype(float)
     w24["wide_qrs_t_gt90"] = np.where(w24["qrs_t_angle"].notna(), (w24["qrs_t_angle"] > 90.0).astype(float), np.nan)
-    w24["last_6lab_h"] = w24["stay_id"].map(last_lab_h)
+    w24["last_6lab_h"] = w24["stay_id"].map(last_draw_h)
+    w24["last_6lab_avail_h"] = w24["stay_id"].map(last_avail_h)
     w24["ecg_after_final_6lab"] = (w24["dt_h"] > w24["last_6lab_h"]).astype(int)
+    w24["ecg_after_6lab_avail"] = (w24["dt_h"] > w24["last_6lab_avail_h"]).astype(int)
     w24["ecg_after_hosp_admit"] = (w24["ecg_dt"] >= w24["adm_dt"]).astype(int)
-    w24["narrow_clean_sinus"] = ((w24["qrs_ms"].between(50.0, 119.0)) & (w24["rhythm_af_pace_flag"] == 0) & (w24["quality_artifact_flag"] == 0)).astype(int)
+    w24["narrow_clean_qrs"] = ((w24["qrs_ms"].between(50.0, 119.0)) & (w24["rhythm_af_pace_flag"] == 0) & (w24["quality_artifact_flag"] == 0)).astype(int)
 
-    # 1. Pre-index hospital admission cardiac diagnoses (AF/flutter, HF, CAD) strictly before index admittime
+    # 1. Pre-index hospital admission cardiac diagnoses strictly before index admittime
     adm = pd.read_csv(EXT_MIMIC / "mimiciv_v31/hosp/admissions.csv.gz", usecols=["subject_id", "hadm_id", "admittime", "dischtime"])
     adm = adm[adm["subject_id"].isin(set(w24["subject_id"]))].copy()
     adm["disch_dt"] = pd.to_datetime(adm["dischtime"], errors="coerce")
@@ -153,7 +163,7 @@ def build_mimic_ecg_with_pre_ecg_confounders(m_df: pd.DataFrame):
     w24["ever_hf"] = w24["stay_id"].isin(set(ever_dx[ever_dx["is_hf"]]["stay_id"])).astype(float)
     w24["ever_cad"] = w24["stay_id"].isin(set(ever_dx[ever_dx["is_cad"]]["stay_id"])).astype(float)
 
-    # 2. Pre-ECG [-24h, 0) electrolytes: K (50971, 50822), Mg (50960), Total Ca (50893), Ionized Ca (50808)
+    # 2. Pre-ECG [-24h, 0) electrolytes: K, Mg, Total Ca, Ionized Ca
     ELEC_IDS = {50971: "k", 50822: "k", 50960: "mg", 50893: "ca_tot", 50808: "ca_ion"}
     sids = set(w24["subject_id"])
     el_chunks = []
@@ -181,8 +191,9 @@ def build_mimic_ecg_with_pre_ecg_confounders(m_df: pd.DataFrame):
     w24["ca_low"] = np.where(w24["ca_ion"].notna(), (w24["ca_ion"] < 1.12).astype(float), np.where(w24["ca_tot"].notna(), (w24["ca_tot"] < 8.5).astype(float), 0.0))
     w24["ca_miss"] = (w24["ca_ion"].isna() & w24["ca_tot"].isna()).astype(float)
 
-    # 3. Pre-ECG [-48h, 0) administered QT-prolonging drugs (eMAR + ICU inputevents)
+    # 3. Pre-ECG [-48h, 0) SYSTEMIC administered QT-prolonging drugs (excluding ophthalmic/otic/topical routes!)
     QT_PAT = r"amiodarone|sotalol|dofetilide|procainamide|quinidine|ibutilide|ondansetron|droperidol|metoclopramide|haloperidol|quetiapine|ziprasidone|olanzapine|risperidone|citalopram|escitalopram|methadone|azithromycin|levofloxacin|ciprofloxacin|moxifloxacin|fluconazole|voriconazole"
+    LOCAL_EXCL = r"ophth|otic|\beye\b|\bear\b|topical"
     hids = set(w24["hadm_id"])
     qt_stays = set()
     for ch in pd.read_csv(
@@ -191,7 +202,8 @@ def build_mimic_ecg_with_pre_ecg_confounders(m_df: pd.DataFrame):
         chunksize=800000,
         low_memory=False,
     ):
-        sub = ch[ch["hadm_id"].isin(hids) & ch["medication"].fillna("").str.contains(QT_PAT, case=False)].copy()
+        med_s = ch["medication"].fillna("")
+        sub = ch[ch["hadm_id"].isin(hids) & med_s.str.contains(QT_PAT, case=False) & ~med_s.str.contains(LOCAL_EXCL, case=False)].copy()
         if len(sub) == 0:
             continue
         ev = sub["event_txt"].fillna("").str.lower()
@@ -202,7 +214,8 @@ def build_mimic_ecg_with_pre_ecg_confounders(m_df: pd.DataFrame):
             qt_stays.update(m_sub[(dh >= -48.0) & (dh < 0.0)]["stay_id"].tolist())
 
     d_it = pd.read_csv(EXT_MIMIC / "mimiciv_v31/icu/d_items.csv.gz")
-    qt_iids = set(d_it[d_it["label"].fillna("").str.contains(QT_PAT, case=False)]["itemid"])
+    lbl_it = d_it["label"].fillna("")
+    qt_iids = set(d_it[lbl_it.str.contains(QT_PAT, case=False) & ~lbl_it.str.contains(LOCAL_EXCL, case=False)]["itemid"])
     ie = pd.read_csv(EXT_MIMIC / "mimiciv_v31/icu/inputevents.csv.gz", usecols=["stay_id", "itemid", "starttime", "amount", "statusdescription"], low_memory=False)
     ie = ie[ie["stay_id"].isin(set(w24["stay_id"])) & ie["itemid"].isin(qt_iids) & (pd.to_numeric(ie["amount"], errors="coerce") > 0)].copy()
     ie = ie[~ie["statusdescription"].fillna("").str.lower().isin(["rewritten", "cancelled", "canceled"])].merge(w24[["stay_id", "ecg_dt"]], on="stay_id")
@@ -253,19 +266,15 @@ def extract_sicdb_icuoffset_bridge_labs(s_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def main():
-    m_df = pd.read_csv(K3_DIR / "mimic_tbi_k3_scored.csv")
-    m_df["ph"] = m_df["endotype_k3"].str[:2]
-    e_df = pd.read_csv(K3_DIR / "eicu_tbi_k3_scored.csv")
-    e_df["ph"] = e_df["endotype_k3"].str[:2]
-    s_base = pd.read_csv(P1_DIR / "sicdb_icuoffset_censoredCDF_scored.csv")
-    s_base["ph"] = s_base["phenotype"].str[:2]
+    m_df = pd.read_csv(K3_DIR / "mimic_tbi_k3_scored.csv"); m_df["ph"] = m_df["endotype_k3"].str[:2]
+    e_df = pd.read_csv(K3_DIR / "eicu_tbi_k3_scored.csv"); e_df["ph"] = e_df["endotype_k3"].str[:2]
+    s_base = pd.read_csv(P1_DIR / "sicdb_icuoffset_censoredCDF_scored.csv"); s_base["ph"] = s_base["phenotype"].str[:2]
     s_df = extract_sicdb_icuoffset_bridge_labs(s_base)
-    h_df = pd.read_csv(HIR_DIR / "hirid_true_neurotrauma_tbi_k3_scored.csv")
-    h_df["ph"] = h_df["endotype"].str[:2]
+    h_df = pd.read_csv(HIR_DIR / "hirid_true_neurotrauma_tbi_k3_scored.csv"); h_df["ph"] = h_df["endotype"].str[:2]
 
     w24 = build_mimic_ecg_with_pre_ecg_confounders(m_df)
 
-    print("[2/3] Fitting pre-ECG confounding-adjusted & rhythm-filtered 12-lead ECG models...", flush=True)
+    print("[2/3] Fitting pre-ECG confounding-adjusted & rhythm-filtered 12-lead ECG models + exact HR regression...", flush=True)
     w24["age_z"] = (w24["age"] - w24["age"].mean()) / w24["age"].std()
     w24["age_z2"] = w24["age_z"] ** 2
     w24["age_z3"] = w24["age_z"] ** 3
@@ -274,19 +283,24 @@ def main():
     for c in ["gcs_motor", "vent_0_24h"]:
         w24[c] = pd.to_numeric(w24[c], errors="coerce").fillna(w24[c].median())
 
+    # Exact ventricular rate regression in n=1,255 valid-QTcF cohort
+    X_hr = sm.add_constant(w24[["is_E2", "is_E3", "age", "male", "gcs_motor", "vent_0_24h"]].astype(float))
+    fit_hr = sm.OLS(w24["ecg_hr_bpm"].astype(float), X_hr).fit(cov_type="HC1")
+    ci_hr_e2 = fit_hr.conf_int().loc["is_E2"]
+
     pre_covs = ["age_z", "age_z2", "age_z3", "male", "has_prior_adm", "prior_af", "prior_hf", "prior_cad", "k_low", "k_miss", "mg_low", "mg_miss", "ca_low", "ca_miss", "pre_ecg_qt_drug"]
     ever_covs = ["age_z", "age_z2", "age_z3", "male", "ever_af", "ever_hf", "ever_cad", "k_low", "k_miss", "mg_low", "mg_miss", "ca_low", "ca_miss", "pre_ecg_qt_drug"]
 
     ecg_models = []
     for out_col, out_lbl in [("qtcf_prolonged", "Prolonged QTcF >=450/460 ms"), ("wide_qrs_t_gt90", "Frontal |QRS-T| > 90 deg")]:
         for spec_lbl, mask, covs in [
-            ("Base clinical adjustment (age, sex, motor GCS, day-1 ventilation)", w24[out_col].notna(), ["age", "male", "gcs_motor", "vent_0_24h"]),
-            ("Strict pre-ECG history + pre-ECG K/Mg/Ca + pre-ECG QT drugs (cubic age)", w24[out_col].notna(), pre_covs),
-            ("Pre-ECG confounders + narrow QRS (50–119 ms), no AF/flutter/pacing/artifact", w24[out_col].notna() & (w24["narrow_clean_sinus"] == 1), pre_covs),
-            ("Pre-ECG confounders + index-admission cardiac diagnoses included", w24[out_col].notna(), ever_covs),
-            ("Pre-ECG confounders restricted to complete K+Mg+Ca measured prior to ECG", w24[out_col].notna() & (w24["k_miss"] == 0) & (w24["mg_miss"] == 0) & (w24["ca_miss"] == 0), ["age_z", "age_z2", "age_z3", "male", "has_prior_adm", "prior_af", "prior_hf", "prior_cad", "k_low", "mg_low", "ca_low", "pre_ecg_qt_drug"]),
-            ("Restricted to ECGs recorded at or after hospital admission timestamp", w24[out_col].notna() & (w24["ecg_after_hosp_admit"] == 1), pre_covs),
-            ("Restricted to ECGs recorded strictly after final 6-lab specimen draw", w24[out_col].notna() & (w24["ecg_after_final_6lab"] == 1), pre_covs),
+            ("Base clinical model (age, sex, motor GCS, day-1 ventilation)", w24[out_col].notna(), ["age", "male", "gcs_motor", "vent_0_24h"]),
+            ("Pre-ECG model (cubic age, sex, prior-admission cardiac dx, pre-ECG K/Mg/Ca & systemic QT drugs)", w24[out_col].notna(), pre_covs),
+            ("Pre-ECG model in narrow QRS (50–119 ms), no AF/flutter/pacing/artifact", w24[out_col].notna() & (w24["narrow_clean_qrs"] == 1), pre_covs),
+            ("Pre-ECG model with index-admission cardiac diagnoses included", w24[out_col].notna(), ever_covs),
+            ("Pre-ECG model in stays with complete K+Mg+Ca measured before ECG", w24[out_col].notna() & (w24["k_miss"] == 0) & (w24["mg_miss"] == 0) & (w24["ca_miss"] == 0), ["age_z", "age_z2", "age_z3", "male", "has_prior_adm", "prior_af", "prior_hf", "prior_cad", "k_low", "mg_low", "ca_low", "pre_ecg_qt_drug"]),
+            ("Pre-ECG model in ECGs recorded at or after hospital admission", w24[out_col].notna() & (w24["ecg_after_hosp_admit"] == 1), pre_covs),
+            ("Pre-ECG model in ECGs recorded strictly after final 6-lab specimen draw", w24[out_col].notna() & (w24["ecg_after_final_6lab"] == 1), pre_covs),
         ]:
             sub = w24[mask].copy()
             use_c = [c for c in covs if sub[c].nunique(dropna=True) >= 2 and sub[c].std() > 1e-6]
@@ -311,10 +325,15 @@ def main():
                 "p_global_2df": float(wt_glob.pvalue),
             })
 
-    ecg_mod_df = pd.DataFrame(ecg_models)
-    ecg_mod_df.to_csv(OUT_DIR / "V2_TableB1_MIMIC_ECG_Confounding_and_Timing_Audit.csv", index=False)
+    # Also compute exact strictly post-storetime (n=299) QTcF check for JSON summary
+    sub_st = w24[w24["ecg_after_6lab_avail"] == 1].copy()
+    use_st = [c for c in pre_covs if sub_st[c].nunique(dropna=True) >= 2 and sub_st[c].std() > 1e-6]
+    res_st = sm.Logit(sub_st["qtcf_prolonged"].astype(float), sm.add_constant(sub_st[["is_E2", "is_E3"] + use_st].astype(float))).fit(disp=False, maxiter=200, cov_type="HC1")
+    ci_st = np.exp(res_st.conf_int().loc["is_E3"])
 
-    print("[3/3] Building 4-database biomarker table with exact tested denominators & full-family Holm adjustment...", flush=True)
+    ecg_mod_df = pd.DataFrame(ecg_models)
+
+    print("[3/3] Building 4-database biomarker table & SINGLE UNIFIED 112-TEST HOLM LEDGER...", flush=True)
     bio_rows = []
     specs = [
         ("MIMIC-IV", "[-24h, +6h]", m_df, "fibrinogen", "Fibrinogen (mg/dL)", 0, ("lt", 200.0, "<200 mg/dL")),
@@ -362,8 +381,9 @@ def main():
                 "E1_tested_summary": f"{c1}/{n1} ({100*c1/n1:.1f}%)",
                 "E2_tested_summary": f"{c2}/{n2} ({100*c2/n2:.1f}%)",
                 "E3_tested_summary": f"{c3}/{n3} ({100*c3/n3:.1f}%)",
-                "threshold_counts_and_fisher_E3_vs_E1": f"Fisher E3 vs E1 P={p_31:.2e}",
+                "threshold_counts_and_fisher": f"Fisher E3 vs E1 P={p_31:.2e}",
                 "p_global": p_glob, "p_E2_vs_E1": p_21, "p_E3_vs_E1": p_31, "p_E3_vs_E2": p_32,
+                "p_fisher_thr_E2_vs_E1": np.nan, "p_fisher_thr_E3_vs_E1": np.nan,
             })
         else:
             p_glob = float(stats.kruskal(g1, g2, g3).pvalue)
@@ -371,6 +391,7 @@ def main():
             p_31 = float(stats.mannwhitneyu(g3, g1).pvalue)
             p_32 = float(stats.mannwhitneyu(g3, g2).pvalue)
             thr_str = "—"
+            pf21, pf31 = np.nan, np.nan
             if thr:
                 op, cut, t_lbl = thr
                 b1 = (g1 < cut) if op == "lt" else (g1 >= cut)
@@ -379,56 +400,121 @@ def main():
                 c1, n1 = int(b1.sum()), len(g1)
                 c2, n2 = int(b2.sum()), len(g2)
                 c3, n3 = int(b3.sum()), len(g3)
-                p_f31 = float(stats.fisher_exact([[c3, n3 - c3], [c1, n1 - c1]])[1])
-                p_f21 = float(stats.fisher_exact([[c2, n2 - c2], [c1, n1 - c1]])[1])
-                thr_str = f"{t_lbl}: E1 {c1}/{n1} ({100*c1/n1:.1f}%), E2 {c2}/{n2} ({100*c2/n2:.1f}%), E3 {c3}/{n3} ({100*c3/n3:.1f}%) [Fisher E2vE1 P={p_f21:.2e}, E3vE1 P={p_f31:.2e}]"
+                pf31 = float(stats.fisher_exact([[c3, n3 - c3], [c1, n1 - c1]])[1])
+                pf21 = float(stats.fisher_exact([[c2, n2 - c2], [c1, n1 - c1]])[1])
+                thr_str = f"{t_lbl}: E1 {c1}/{n1} ({100*c1/n1:.1f}%), E2 {c2}/{n2} ({100*c2/n2:.1f}%), E3 {c3}/{n3} ({100*c3/n3:.1f}%) [Fisher E2vE1 P={pf21:.2e}, E3vE1 P={pf31:.2e}]"
             bio_rows.append({
                 "database": dbn, "window": win_s, "biomarker": lbl,
                 "measured_total_vs_cohort": f"{len(sub)}/{len(d)}",
                 "E1_tested_summary": f"{med_iqr(g1, dec)} [n={len(g1)}]",
                 "E2_tested_summary": f"{med_iqr(g2, dec)} [n={len(g2)}]",
                 "E3_tested_summary": f"{med_iqr(g3, dec)} [n={len(g3)}]",
-                "threshold_counts_and_fisher_E3_vs_E1": thr_str,
+                "threshold_counts_and_fisher": thr_str,
                 "p_global": p_glob, "p_E2_vs_E1": p_21, "p_E3_vs_E1": p_31, "p_E3_vs_E2": p_32,
+                "p_fisher_thr_E2_vs_E1": pf21, "p_fisher_thr_E3_vs_E1": pf31,
             })
 
     bio_df = pd.DataFrame(bio_rows)
-    # Full-family Holm across ALL global + pairwise tests in bio_df + primary ECG rows!
-    all_p = []
-    for col_p in ["p_global", "p_E2_vs_E1", "p_E3_vs_E1", "p_E3_vs_E2"]:
-        all_p.extend(bio_df[col_p].tolist())
-    # Also include the 2 primary ECG rows (base adjustment QTcF + |QRS-T|) * 4 p-values = 8 tests -> total 96 tests
-    ecg_base = ecg_mod_df[ecg_mod_df["specification"].str.startswith("Base")].copy()
-    for col_p in ["p_global_2df", "p_E2_vs_E1", "p_E3_vs_E1", "p_E3_vs_E2"]:
-        all_p.extend(ecg_base[col_p].tolist())
-    all_holm = holm_adjust(all_p)
-    nb = len(bio_df)
-    bio_df["holm_full_global"] = all_holm[0:nb]
-    bio_df["holm_full_E2_vs_E1"] = all_holm[nb:2*nb]
-    bio_df["holm_full_E3_vs_E1"] = all_holm[2*nb:3*nb]
-    bio_df["holm_full_E3_vs_E2"] = all_holm[3*nb:4*nb]
-    bio_df.to_csv(OUT_DIR / "V2_TableB2_4DB_Biomarkers_FullDenominators_and_Holm.csv", index=False)
 
-    # Also save ECG timing summary JSON for exact text reporting
+    # Build SINGLE UNIFIED 112-TEST LEDGER (88 continuous/chi2 biomarker + 8 base ECG + 16 Fisher binary threshold = 112)
+    ledger_items = []
+    for r_i, row in bio_df.iterrows():
+        for c_type, c_col in [("global", "p_global"), ("pairwise_E2_vs_E1", "p_E2_vs_E1"), ("pairwise_E3_vs_E1", "p_E3_vs_E1"), ("pairwise_E3_vs_E2", "p_E3_vs_E2")]:
+            ledger_items.append({
+                "source_table": "TableB2_Biomarkers", "source_row_idx": int(r_i),
+                "database": row["database"], "variable": row["biomarker"],
+                "test_category": c_type, "in_96_family": 1, "raw_p": float(row[c_col]),
+            })
+
+    ecg_base_indices = ecg_mod_df.index[ecg_mod_df["specification"].str.startswith("Base")].tolist()
+    for e_i in ecg_base_indices:
+        erow = ecg_mod_df.loc[e_i]
+        for c_type, c_col in [("global_2df", "p_global_2df"), ("pairwise_E2_vs_E1", "p_E2_vs_E1"), ("pairwise_E3_vs_E1", "p_E3_vs_E1"), ("pairwise_E3_vs_E2", "p_E3_vs_E2")]:
+            ledger_items.append({
+                "source_table": "TableB1_ECG_Base", "source_row_idx": int(e_i),
+                "database": "MIMIC-IV ECG", "variable": erow["endpoint"],
+                "test_category": c_type, "in_96_family": 1, "raw_p": float(erow[c_col]),
+            })
+
+    for r_i, row in bio_df.iterrows():
+        if np.isfinite(row["p_fisher_thr_E2_vs_E1"]):
+            ledger_items.append({
+                "source_table": "TableB2_BinaryThreshold", "source_row_idx": int(r_i),
+                "database": row["database"], "variable": row["biomarker"] + " binary threshold",
+                "test_category": "threshold_fisher_E2_vs_E1", "in_96_family": 0, "raw_p": float(row["p_fisher_thr_E2_vs_E1"]),
+            })
+            ledger_items.append({
+                "source_table": "TableB2_BinaryThreshold", "source_row_idx": int(r_i),
+                "database": row["database"], "variable": row["biomarker"] + " binary threshold",
+                "test_category": "threshold_fisher_E3_vs_E1", "in_96_family": 0, "raw_p": float(row["p_fisher_thr_E3_vs_E1"]),
+            })
+
+    ledger_df = pd.DataFrame(ledger_items)
+    assert len(ledger_df) == 112 and int(ledger_df["in_96_family"].sum()) == 96
+    ledger_df["holm_112"] = holm_adjust(ledger_df["raw_p"].tolist())
+    p96_input = [p if f96 == 1 else np.nan for p, f96 in zip(ledger_df["raw_p"], ledger_df["in_96_family"])]
+    ledger_df["holm_96"] = holm_adjust(p96_input)
+    ledger_df.to_csv(OUT_DIR / "V3_TableB3_Unified_112Test_Holm_Ledger.csv", index=False)
+
+    # Map unified 112-test Holm P values back into TableB1 (base rows) and TableB2 (all rows + binary thresholds)
+    for c_type, out_col in [
+        ("global_2df", "holm_112_global_2df"),
+        ("pairwise_E2_vs_E1", "holm_112_E2_vs_E1"),
+        ("pairwise_E3_vs_E1", "holm_112_E3_vs_E1"),
+        ("pairwise_E3_vs_E2", "holm_112_E3_vs_E2"),
+    ]:
+        ecg_mod_df[out_col] = np.nan
+        sub_l = ledger_df[(ledger_df["source_table"] == "TableB1_ECG_Base") & (ledger_df["test_category"] == c_type)]
+        for _, lr in sub_l.iterrows():
+            ecg_mod_df.loc[int(lr["source_row_idx"]), out_col] = float(lr["holm_112"])
+    ecg_mod_df.to_csv(OUT_DIR / "V3_TableB1_MIMIC_ECG_Confounding_and_Timing_Audit.csv", index=False)
+
+    for c_type, out_col in [
+        ("global", "holm_112_global"),
+        ("pairwise_E2_vs_E1", "holm_112_E2_vs_E1"),
+        ("pairwise_E3_vs_E1", "holm_112_E3_vs_E1"),
+        ("pairwise_E3_vs_E2", "holm_112_E3_vs_E2"),
+    ]:
+        sub_l = ledger_df[(ledger_df["source_table"] == "TableB2_Biomarkers") & (ledger_df["test_category"] == c_type)].set_index("source_row_idx")
+        bio_df[out_col] = bio_df.index.map(sub_l["holm_112"].to_dict())
+
+    for c_type, out_col in [
+        ("threshold_fisher_E2_vs_E1", "holm_112_fisher_thr_E2_vs_E1"),
+        ("threshold_fisher_E3_vs_E1", "holm_112_fisher_thr_E3_vs_E1"),
+    ]:
+        sub_l = ledger_df[(ledger_df["source_table"] == "TableB2_BinaryThreshold") & (ledger_df["test_category"] == c_type)].set_index("source_row_idx")
+        bio_df[out_col] = bio_df.index.map(sub_l["holm_112"].to_dict())
+
+    bio_df.to_csv(OUT_DIR / "V3_TableB2_4DB_Biomarkers_FullDenominators_and_Holm.csv", index=False)
+
     ecg_clock_summary = {
         "n_valid_qtcf_stays": int(len(w24)),
         "median_age_by_state": {k: float(w24[w24["ph"] == k]["age"].median()) for k in ["E1", "E2", "E3"]},
         "ecg_median_hours_from_icu": round(float(w24["dt_h"].median()), 2),
         "ecg_before_icu_n": int((w24["dt_h"] < 0).sum()),
-        "ecg_before_or_at_final_6lab_n": int((w24["dt_h"] <= w24["last_6lab_h"]).sum()),
-        "ecg_strictly_after_final_6lab_n": int((w24["dt_h"] > w24["last_6lab_h"]).sum()),
+        "ecg_strictly_before_final_6lab_draw_n": int((w24["dt_h"] < w24["last_6lab_h"]).sum()),
+        "ecg_simultaneous_with_final_6lab_draw_n": int((w24["dt_h"] == w24["last_6lab_h"]).sum()),
+        "ecg_before_or_at_final_6lab_draw_n": int((w24["dt_h"] <= w24["last_6lab_h"]).sum()),
+        "ecg_strictly_after_final_6lab_draw_n": int((w24["dt_h"] > w24["last_6lab_h"]).sum()),
+        "ecg_strictly_after_all_6lab_storetime_n": int(w24["ecg_after_6lab_avail"].sum()),
+        "qtcf_post_storetime_n299_E3_vs_E1_aOR_CI": f"{np.exp(res_st.params['is_E3']):.2f} ({ci_st[0]:.2f}–{ci_st[1]:.2f})",
+        "qtcf_post_storetime_n299_p": float(res_st.pvalues["is_E3"]),
         "ecg_at_or_after_hosp_admit_n": int(w24["ecg_after_hosp_admit"].sum()),
-        "narrow_clean_sinus_n": int(w24["narrow_clean_sinus"].sum()),
-        "pre_ecg_qt_drug_n": int(w24["pre_ecg_qt_drug"].sum()),
+        "narrow_clean_qrs_n": int(w24["narrow_clean_qrs"].sum()),
+        "pre_ecg_systemic_qt_drug_n": int(w24["pre_ecg_qt_drug"].sum()),
         "prior_hosp_adm_n": int(w24["has_prior_adm"].sum()),
+        "hr_bpm_E2_vs_E1_diff": round(float(fit_hr.params["is_E2"]), 2),
+        "hr_bpm_E2_vs_E1_ci": [round(float(ci_hr_e2[0]), 2), round(float(ci_hr_e2[1]), 2)],
+        "hr_bpm_E2_vs_E1_p": float(fit_hr.pvalues["is_E2"]),
+        "qtcf_base_E3_vs_E1_holm_112": float(ecg_mod_df.loc[0, "holm_112_E3_vs_E1"]),
+        "qtcf_base_E3_vs_E1_holm_96": float(ledger_df[(ledger_df["source_table"] == "TableB1_ECG_Base") & (ledger_df["source_row_idx"] == 0) & (ledger_df["test_category"] == "pairwise_E3_vs_E1")]["holm_96"].iloc[0]),
     }
-    import json
-    (OUT_DIR / "V2_ECG_Clock_and_Confounder_Coverage.json").write_text(json.dumps(ecg_clock_summary, indent=2))
+    (OUT_DIR / "V3_ECG_Clock_and_Confounder_Coverage.json").write_text(json.dumps(ecg_clock_summary, indent=2))
 
-    print("\n=== ECG CLOCK SUMMARY ===")
+    print("\n=== ECG CLOCK & HR SUMMARY ===")
     print(json.dumps(ecg_clock_summary, indent=2))
-    print("\n=== ECG CONFOUNDING STRESS-TESTS ===")
-    print(ecg_mod_df[["endpoint", "specification", "n_total", "E3_vs_E1_aOR_CI", "p_E3_vs_E1"]].to_string(index=False))
+    print("\n=== ECG CONFOUNDING STRESS-TESTS (V3) ===")
+    print(ecg_mod_df[["endpoint", "specification", "n_total", "E3_vs_E1_aOR_CI", "p_E3_vs_E1", "holm_112_E3_vs_E1"]].to_string(index=False))
 
 
 if __name__ == "__main__":

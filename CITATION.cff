@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this code, please cite the manuscript below."
 type: software
-title: "Analysis code for: Baseline and 48-Hour Dynamic Host-Response States From Six Routine Blood Tests After Traumatic Brain Injury"
+title: "Analysis code (v3) for: Baseline and 48-Hour Dynamic Host-Response States From Six Routine Blood Tests After Traumatic Brain Injury"
 abstract: "Code generating all tables and figures for a four-database study of routine-laboratory host-response states in traumatic brain injury."
 authors:
   - family-names: "[to be completed]"
