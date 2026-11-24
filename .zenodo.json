@@ -1,0 +1,18 @@
+{
+  "title": "Reproducible Analysis Code and Zero-Refit Bedside Classifier: Baseline and 48-Hour Dynamic Host-Response States From Six Routine Blood Tests After Traumatic Brain Injury (v1.1.0)",
+  "upload_type": "software",
+  "license": "MIT",
+  "version": "1.1.0",
+  "description": "Public MIT-licensed reproducible code, frozen 45-parameter three-state Gaussian mixture classifier, standalone zero-refit six-test bedside state calculator, external Decision Curve Analysis (DCA), conventional ICU severity-score benchmarks (Motor/Total GCS, APACHE IV/IVa, SAPS 3), and aggregate verification tables across MIMIC-IV v3.1, eICU-CRD v2.0, SICdb v1.0.8, and HiRID v1.1.1 (N = 8,130). Contains zero patient-level data in strict compliance with PhysioNet Data Use Agreements.",
+  "keywords": [
+    "traumatic brain injury",
+    "intensive care unit",
+    "subphenotypes",
+    "MIMIC-IV",
+    "eICU-CRD",
+    "SICdb",
+    "HiRID",
+    "decision curve analysis",
+    "coagulopathy"
+  ]
+}

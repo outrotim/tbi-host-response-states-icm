@@ -1,10 +1,11 @@
 cff-version: 1.2.0
-message: "If you use this code, please cite the manuscript below."
+message: "If you use this classifier or analysis code, please cite the accompanying manuscript and software release."
 type: software
-title: "Analysis code (v3) for: Baseline and 48-Hour Dynamic Host-Response States From Six Routine Blood Tests After Traumatic Brain Injury"
-abstract: "Code generating all tables and figures for a four-database study of routine-laboratory host-response states in traumatic brain injury."
+title: "Baseline and 48-Hour Dynamic Host-Response States From Six Routine Blood Tests After Traumatic Brain Injury: Reproducible Analysis Suite & Bedside Scorer"
+version: "1.1.0"
+date-released: "2026-11-24"
+abstract: "Frozen three-state routine-laboratory classifier, standalone zero-refit bedside scorer, external decision curve and ICU severity-score benchmarks, strict 48h/72h ICU-resident transition models, and aggregate verification tables across four critical care databases (N = 8,130)."
 authors:
-  - family-names: "[to be completed]"
-    given-names: "[to be completed]"
+  - name: "TBI Host-Response Study Investigators"
 repository-code: "https://github.com/outrotim/tbi-host-response-states-icm"
 license: MIT

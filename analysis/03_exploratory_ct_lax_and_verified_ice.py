@@ -23,6 +23,7 @@ Writes exclusively to icm_submission_v3_20261123/tables/.
 import csv
 import gzip
 import re
+import os
 from pathlib import Path
 
 import numpy as np
@@ -32,8 +33,8 @@ from sklearn.linear_model import LinearRegression, RidgeCV
 from sklearn.preprocessing import StandardScaler
 import statsmodels.api as sm
 
-ROOT = Path("/Users/haoruijinlin/VItalDB/tbi_public_data_inventory_20261031")
-EXT_MIMIC = Path("/Volumes/Extreme SSD/2T H2/mimic_downloads")
+ROOT = Path(os.environ.get("TBI_ROOT", "./data_workspace"))
+EXT_MIMIC = Path(os.environ.get("MIMIC_RAW_DIR", "./physionet/mimic"))
 K3_DIR = ROOT / "derived/closed_loop_v1/clinical_k3"
 HIR_DIR = ROOT / "derived/closed_loop_v1/transatlantic_4db_v1/hirid"
 CPP_PRIV = ROOT / "clinical_strengthening_20261119/cpp/private"

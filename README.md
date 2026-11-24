@@ -1,107 +1,64 @@
-# Baseline and 48-Hour Dynamic Host-Response States After Traumatic Brain Injury
+# Baseline and 48-Hour Dynamic Host-Response States From Six Routine Blood Tests After Traumatic Brain Injury
 
-Analysis code accompanying the manuscript submitted to *Intensive Care Medicine*:
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v1.1.0-teal.svg)](https://github.com/outrotim/tbi-host-response-states-icm/releases)
 
-> **Baseline and 48-Hour Dynamic Host-Response States From Six Routine Blood Tests After
-> Traumatic Brain Injury: Four-Database Validation, Transfusion Audit, and Multi-Organ Context**
-
-This repository contains the **final analysis layer** that generates every table and figure
-reported in the manuscript, plus the frozen classifier parameters required for zero-refit
-scoring and the reference output tables (aggregate statistics only).
+Public reproducible analysis suite and standalone zero-refit bedside classifier accompanying the four-cohort intensive care study ($N = 8,130$ across **MIMIC-IV v3.1**, **eICU-CRD v2.0** [130 US hospitals], **SICdb v1.0.8** [Salzburg, Austria], and **HiRID v1.1.1** [Bern, Switzerland]).
 
 ---
 
-## What is here
+## 1. Instant Zero-Dependency Bedside / CSV Scorer (No Credentialed Data Needed)
 
-```
-analysis/            4 Python scripts (exact bytes that produced the published tables/figures)
-model/               Frozen three-state Gaussian-mixture classifier parameters
-reference_outputs/   Aggregate result tables (no patient-level rows) for verification
-docs/                Data access, reproducibility and portability notes
-```
-
-| Script | Produces |
-|---|---|
-| `analysis/31_strict_48h_72h_icu_transitions_and_transfusion_v3.py` | Mutually exclusive ICU-landmark flow (D1), strict in-ICU landmark survival models (D2), US blood-product exposure and adjusted models (D3) |
-| `analysis/32_ecg_confounding_and_4db_biomarkers_v3.py` | 12-lead ECG confounding/timing audit (B1), four-cohort biomarker denominators and Holm adjustment (B2), unified 112-test Holm ledger (B3), ECG clock/confounder coverage JSON |
-| `analysis/33_exploratory_ct_lax_and_verified_ice_v3.py` | Head-CT strict-timing and competing flow (S4A) and exploratory summary (S4B); LAx / minimum-LAx 5-mmHg CPP bin 16-row table (S5A); observed-past sequential-ICE comparison with a known-truth factoral unit test (S5B) |
-| `analysis/34_render_icm_v3_3figures.py` | Main Figures 1–3 |
-
-Every published number is reproduced **byte-for-byte** by these scripts (see
-`docs/REPRODUCIBILITY.md`).
-
----
-
-## Data are not in this repository
-
-All four source databases are **credentialed, de-identified clinical databases** that cannot be
-redistributed:
-
-| Database | Access |
-|---|---|
-| MIMIC-IV v3.1, MIMIC-IV-ECG, MIMIC-IV-Note | PhysioNet — credentialed + DUA + CITI training |
-| eICU-CRD v2.0 | PhysioNet — credentialed + DUA + CITI training |
-| SICdb v1.0.8 | PhysioNet — credentialed + DUA |
-| HiRID v1.1.1 | PhysioNet — credentialed + DUA |
-
-No patient-level data, identifiers, or derived row-level tables are included. The files in
-`reference_outputs/` are **aggregate summary statistics only** (counts, medians, adjusted odds
-ratios, confidence intervals, P values) and contain **no subject-level rows**.
-
-See **`docs/DATA_ACCESS.md`** for the access procedure and the exact input files the scripts expect.
-
----
-
-## Quick start (for a credentialed user)
+`tools/score_tbi_six_test_states.py` implements the exact closed-form frozen MIMIC-IV three-state Gaussian mixture classifier (`model/locked_mimic_tbi_endotype_k3.json`) using only Python's standard library:
 
 ```bash
 git clone https://github.com/outrotim/tbi-host-response-states-icm.git
 cd tbi-host-response-states-icm
-pip install -r requirements.txt      # Python 3.11+ recommended
 
-# 1. Obtain the four credentialed databases and build the derived cohorts with your own
-#    extraction pipeline (see docs/DATA_ACCESS.md for the required schemas).
-# 2. Point the scripts at your local paths (see docs/PORTABILITY.md).
-# 3. Run in order:
-python analysis/31_strict_48h_72h_icu_transitions_and_transfusion_v3.py
-python analysis/32_ecg_confounding_and_4db_biomarkers_v3.py
-python analysis/33_exploratory_ct_lax_and_verified_ice_v3.py
-python analysis/34_render_icm_v3_3figures.py
+# 1. Run automated mathematical-parity & privacy unit tests (6/6 tests):
+python3 -m unittest discover -s tests -v
+
+# 2. Score a single acute TBI blood panel (conventional units: WBC x10^9/L, Plt x10^9/L, Hgb g/dL, INR, Bicarb mmol/L, Glu mg/dL):
+python3 tools/score_tbi_six_test_states.py --wbc 8.5 --plt 144 --hgb 10.2 --inr 1.50 --bicarb 23.0 --glu 133
+
+# 3. Score European SI units (Hgb g/L, Glu mmol/L) or left-censored INR <= 1.20 (SICdb):
+python3 tools/score_tbi_six_test_states.py --wbc 8.9 --plt 149 --hgb 101 --inr 1.20 --bicarb 22.6 --glu 7.05 --european-units --sicdb-censored-inr
+
+# 4. Batch-score a local CSV file (columns: wbc, plt, hgb, inr, bicarb, glu):
+python3 tools/score_tbi_six_test_states.py --input-csv my_cohort.csv --output-csv my_cohort_scored.csv
 ```
 
-Compare your outputs against `reference_outputs/` using the SHA-256 values listed in
-`docs/REPRODUCIBILITY.md`.
+---
+
+## 2. Repository Structure (`v1.1.0`)
+
+```text
+model/               Frozen 45-parameter MIMIC-IV v3.1 RobustScaler + 3-state diagonal GMM (JSON)
+tools/               Standalone zero-dependency CLI & batch CSV six-test state calculator
+tests/               Automated unit tests for frozen model parity, SI units, censored INR & zero-PHI compliance
+analysis/            Complete reproducible Python scripts for four-cohort validation, DCA, ICU scores & figures
+reference_outputs/   Aggregate summary verification tables only (zero patient-level rows)
+docs/                PhysioNet credentialed data access, environment portability & SHA-256 manifest
+.zenodo.json         Zenodo archival metadata
+CITATION.cff         Machine-readable citation metadata
+```
+
+| Script | Reproduces |
+|---|---|
+| `analysis/01b_strict_48h_72h_sicdb070_and_component_blood.py` | Mutually exclusive 48h/72h ICU-resident disposition flow (`D1`), zero-carry-forward transition survival models with unified `(0.70, 1.20]` censored-INR integration (`D2`), and binary + separate `PRBC`/platelet/plasma-factor blood-product models (`D3`) |
+| `analysis/02_ecg_confounding_and_4db_biomarkers.py` | MIMIC-IV 12-lead ECG pre-ECG confounding/narrow-QRS/timing models (`B1`), four-cohort tested biomarker denominators (`B2`), and unified 112-test Holm multiplicity ledger (`B3`) |
+| `analysis/03_exploratory_ct_lax_and_verified_ice.py` | Serial Head CT strict timing & competing-death flow (`S4A–S4B`), 2-min/5-min `LAx` autoregulation models (`S5A`), and simulation-verified observed-past sequential `ICE` (`S5B`) |
+| `analysis/04_external_dca_and_severity_benchmarks.py` | Zero-refit `M0–M4` calibration/AUC parity, external `eICU-CRD` (`n=3,640`) 5%–50% Decision Curve Analysis (`Table S1F`), and 11-row four-cohort benchmarks over `Motor GCS`, `Total GCS (3–15)`, `APACHE IV`, `APACHE IVa`, and `SAPS 3` (`Table S1G`) |
+| `analysis/05a_render_main_figures_1_to_3.py` & `05b_render_figS1_and_vector_qa.py` | `180.0-mm` 600-DPI vector Figures 1–3, Supplementary Figure S1, Visual Abstract, and automated PyMuPDF zero-overlap QA |
 
 ---
 
-## Key methodological features
+## 3. Data Access & Strict PhysioNet DUA Compliance
 
-1. **Zero-refit transport** — the three-state classifier is frozen in `model/` and applied to
-   external cohorts without re-estimation.
-2. **Strict ICU-resident landmarks** — admissions are partitioned at exact 48 h / 72 h into
-   *died ≤ landmark*, *discharged alive ≤ landmark*, *still in ICU*; dynamic re-scoring requires
-   all six tests freshly redrawn in `(24, 48]` or `(48, 72]` with zero carry-forward.
-3. **Transfusion audit** — recorded 0–48 h / 0–72 h packed red cells, platelets, plasma/FFP and
-   coagulation factors are extracted and used for adjusted and stratified models.
-4. **Negation-aware radiology parsing** — clause-level rules with intra-sentence line-break
-   unwrapping, extracranial bleeds excluded, and four built-in unit tests executed at runtime.
-5. **Verified longitudinal estimation** — the observed-past sequential-ICE estimator shifts the
-   current-step exposure `d(A_t)` while leaving earlier exposures to be shifted at their own
-   backward-recursion steps, reports unpenalised OLS and Ridge variants, and is validated against
-   a known-truth two-period factorial construction (`|estimate − truth| < 1e-9`) before any
-   clinical cohort is fitted.
+**No patient-level data, identifiers, or row-level clinical extracts are included in this repository.** All four source datasets are available to credentialed researchers via PhysioNet under their respective Data Use Agreements (`MIMIC-IV v3.1`, `MIMIC-IV-ECG v1.0`, `MIMIC-IV-Note v2.2`, `eICU-CRD v2.0`, `SICdb v1.0.8`, and `HiRID v1.1.1`; see [`docs/DATA_ACCESS.md`](docs/DATA_ACCESS.md)).
 
 ---
 
-## Citation
+## 4. License
 
-If you use this code, please cite the manuscript. See `CITATION.cff`.
-
-## License
-
-Code: MIT (see `LICENSE`). The reference output tables are released under CC BY 4.0.
-
-## Contact
-
-Corresponding author details are in the manuscript. For data-access questions, refer to
-`docs/DATA_ACCESS.md`.
+Code is released under the [MIT License](LICENSE); aggregate summary tables in `reference_outputs/` are released under CC BY 4.0.

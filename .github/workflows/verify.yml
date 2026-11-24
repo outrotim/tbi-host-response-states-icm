@@ -1,0 +1,24 @@
+name: Reproducibility & Zero-PHI Verification
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run frozen classifier, unit-conversion, censored-INR & privacy unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Smoke-test CLI bedside calculator
+        run: |
+          python tools/score_tbi_six_test_states.py --wbc 8.5 --plt 144 --hgb 10.2 --inr 1.50 --bicarb 23.0 --glu 133

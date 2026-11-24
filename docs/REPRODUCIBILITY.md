@@ -1,44 +1,36 @@
-# Reproducibility record
+# Reproducibility & SHA-256 Verification Manifest (`v1.1.0`)
 
-The four scripts in `analysis/` are **byte-identical** to the versions that produced the
-published tables and figures (ICM submission package v3). Their SHA-256 values are:
+Every script, frozen classifier parameter file, standalone bedside tool, and aggregate summary verification table in release `v1.1.0` is listed below with its exact SHA-256 digest:
 
-```
-647181b75bb41f5d842ecbe90a76f7aa8d2ed71a1045d100428ea7ac6e90064e  analysis/31_strict_48h_72h_icu_transitions_and_transfusion_v3.py
-900df2c7d8756cf992968249b3a5be14dd5fb860d8466647fe87f31467c8bfa6  analysis/32_ecg_confounding_and_4db_biomarkers_v3.py
-c155d3c7f8b2800b0a64750e5825250258c9051d4f6f81c16bbd14f2c5efe5f2  analysis/33_exploratory_ct_lax_and_verified_ice_v3.py
-cbf1e0190ca07ff829bcc44e71076d8f0f6afd1d3c79018e458f897fec0b5550  analysis/34_render_icm_v3_3figures.py
-```
-
-Frozen three-state classifier (shared with the v3 analysis runs, hash unchanged):
-
-```
+```text
 0410cac81115c7f37998860b97a2278214982250d9e62b8ebd84fe6fe4b42c50  model/locked_mimic_tbi_endotype_k3.json
+66e01eb894623e193f4bcd9fa8b3d0d5656e5294d9b870478bf5236c2e218d4a  tools/score_tbi_six_test_states.py
+439d1ac646049cdb0873c7f41d2ca1b5d13e7d6c408e8a1f1ea96846ba52c73f  tests/test_bedside_scorer_and_privacy.py
+41d6773f157b393de3d4306db06992436aaa163dca5aacdbe512031842a6154d  analysis/01a_landmark_window_engine_base.py
+a9fe49682a89479aa695ca2ca5bca233b01b95bcf95e759f40e9fbb99817f32b  analysis/01b_strict_48h_72h_sicdb070_and_component_blood.py
+e7de30575f9cf24ae69049376246a22675e4ab4d65253682389741ffceabb4fe  analysis/02_ecg_confounding_and_4db_biomarkers.py
+30719011e0bfd0460432be8cd52795f263a612cabe05801a98ef01aef92c5c7a  analysis/03_exploratory_ct_lax_and_verified_ice.py
+622811052ddb2e768f7deb10d6cbf7cd661a61ca6b4bc7e7214457bfde5d75ec  analysis/04_external_dca_and_severity_benchmarks.py
+9de358dd5f4abe5d360f7e5d043b7919798b9e880278d31905122e02826d47ae  analysis/05a_render_main_figures_1_to_3.py
+32d32018a760d5e4d98c0c4971b5554cf283a6ea3fbb0bd88668e8c596043b8c  analysis/05b_render_figS1_and_vector_qa.py
+e1be15d6c38dfd43d8db88368651fa6b1d82da22b2aaa2c30d535d28097513d6  reference_outputs/V8_DCA_Curve_eICU_n3640.csv
+c06371f47f68d05cb8ec4fd6d81fc163d01341077bc688306a169d9c20ce34a4  reference_outputs/V8_ECG_Clock_and_Confounder_Coverage.json
+b1f91fde637adfc4e8b499f8193d6cb1b43f40fd070d80f5a1d5d7d4fbc869b8  reference_outputs/V8_TableB1_MIMIC_ECG_Confounding_and_Timing_Audit.csv
+6ad97f365520eb4fb1fc442270aae105d38150ac5407bb3bb664d24c8f5e5696  reference_outputs/V8_TableB2_4DB_Biomarkers_FullDenominators_and_Holm.csv
+933778e2a88f0a5613983b0ca046c1c080e61318c19b77379d39d5fb91e3ad2e  reference_outputs/V8_TableB3_Unified_112Test_Holm_Ledger.csv
+762d380fa3ac6b2d1319b34698437718817ee031ab40479414555fd59e987a54  reference_outputs/V8_TableD1_MutuallyExclusive_ICU_Landmark_Flow.csv
+b4c13687ac950c717cef84357d0aa4b7852491a5f2abaa8dd405322d22ffbb94  reference_outputs/V8_TableD2_Strict_InICU_Landmark_Survival_Models.csv
+3c7ad8b2c9b296343a39b1f20ee20f29e7d79bfdd90fda6a6673dbdc0c9bc9cd  reference_outputs/V8_TableD3_US_BloodProduct_Exposure_and_Adjusted_Models.csv
+0f260272ad3a9db859552fe13ca0fcf002d303164c59607489e48cf685bea414  reference_outputs/V8_TableS1F_eICU_DCA_KeyThresholds.csv
+6831eb7ca958466c30f3052a9fcda158146be627f5374329473b62db4b42ed08  reference_outputs/V8_TableS1G_Conventional_Severity_Score_Benchmarks.csv
+b3779af0f7cc05781ec7c077092a34a6f206ab6b0951d2f7a2e473cec4977eae  reference_outputs/V8_TableS4A_HeadCT_StrictTiming_and_CompetingFlow.csv
+f08daf06895f25e41cae48e12d553f50c9284e1d85e7eab08b264ee2d8282a59  reference_outputs/V8_TableS4B_HeadCT_Corrected_Exploratory_Summary.csv
+32b52e7430e734b58e9f326d1b014f6b4c5b4bd0602bd77237580afb0524c0f4  reference_outputs/V8_TableS5A_LAx_and_MinLAxBin_Complete16Rows.csv
+bb53fde105aa3a7a4a85bf54081544b1373dab2b5f208426d682d182922aec42  reference_outputs/V8_TableS5B_Verified_ObservedPast_ICE_Comparison.csv
 ```
 
-## Reference outputs
-
-Regenerating the analysis on the same credentialed databases reproduces these files
-byte-for-byte. Compare your run against the hashes below.
-
-```
-c06371f47f68d05cb8ec4fd6d81fc163d01341077bc688306a169d9c20ce34a4  reference_outputs/V3_ECG_Clock_and_Confounder_Coverage.json
-b1f91fde637adfc4e8b499f8193d6cb1b43f40fd070d80f5a1d5d7d4fbc869b8  reference_outputs/V3_TableB1_MIMIC_ECG_Confounding_and_Timing_Audit.csv
-6ad97f365520eb4fb1fc442270aae105d38150ac5407bb3bb664d24c8f5e5696  reference_outputs/V3_TableB2_4DB_Biomarkers_FullDenominators_and_Holm.csv
-933778e2a88f0a5613983b0ca046c1c080e61318c19b77379d39d5fb91e3ad2e  reference_outputs/V3_TableB3_Unified_112Test_Holm_Ledger.csv
-d9741ca3d290e09e60ef28f3e8e2dcf3dc07942dd3c84e3f18428592293c4141  reference_outputs/V3_TableD1_MutuallyExclusive_ICU_Landmark_Flow.csv
-b72869092a4e06996d13f9c27145b71088f34f8f8b993694552098ae8341a9e5  reference_outputs/V3_TableD2_Strict_InICU_Landmark_Survival_Models.csv
-495acaf2bb8e7981efd4ff447248e7f410492c532cf57354769b22bab662da43  reference_outputs/V3_TableD3_US_BloodProduct_Exposure_and_Adjusted_Models.csv
-b3779af0f7cc05781ec7c077092a34a6f206ab6b0951d2f7a2e473cec4977eae  reference_outputs/V3_TableS4A_HeadCT_StrictTiming_and_CompetingFlow.csv
-f08daf06895f25e41cae48e12d553f50c9284e1d85e7eab08b264ee2d8282a59  reference_outputs/V3_TableS4B_HeadCT_Corrected_Exploratory_Summary.csv
-32b52e7430e734b58e9f326d1b014f6b4c5b4bd0602bd77237580afb0524c0f4  reference_outputs/V3_TableS5A_LAx_and_MinLAxBin_Complete16Rows.csv
-bb53fde105aa3a7a4a85bf54081544b1373dab2b5f208426d682d182922aec42  reference_outputs/V3_TableS5B_Verified_ObservedPast_ICE_Comparison.csv
-```
-
-## Verification performed before release
-
-- Scripts were published unmodified from the submission package that produced the tables.
-- The built-in CT radiology-parser unit tests pass 4/4.
-- The built-in known-truth two-period factorial ICE test passes: structural risk difference
-  +2.254902 pp vs estimator +2.254902 pp (|difference| < 1e-9).
-- No credentials, patient identifiers or subject-level rows are present in this repository.
+## Automated Self-Checks Executed in CI (`python -m unittest discover -s tests -v`)
+1. **Frozen Classifier Integrity:** Verifies SHA-256 of `model/locked_mimic_tbi_endotype_k3.json` (`n = 3,483` MIMIC-IV v3.1 derivation, 45 frozen parameters).
+2. **Clinical Signature Parity:** Verifies E1, E2, and E3 classification and posterior-probability normalisation on published clinical medians.
+3. **Cross-System Unit & Left-Censored INR Parity:** Verifies European SI conversion (`Hgb g/L`, `Glu mmol/L`) and exact univariate normal CDF integration over `INR in (0.70, 1.20]` for Austrian `SICdb v1.0.8`.
+4. **PhysioNet DUA & Zero-PHI Guardrail:** Confirms zero patient-level records and zero personal filesystem paths across all tracked files.

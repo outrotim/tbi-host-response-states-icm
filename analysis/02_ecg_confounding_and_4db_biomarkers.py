@@ -13,6 +13,7 @@ Strictly read-only on all upstream datasets and all prior submission / review di
 Writes exclusively to icm_submission_v3_20261123/tables/.
 """
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -20,9 +21,9 @@ import pandas as pd
 from scipy import stats
 import statsmodels.api as sm
 
-ROOT = Path("/Users/haoruijinlin/VItalDB/tbi_public_data_inventory_20261031")
-EXT_MIMIC = Path("/Volumes/Extreme SSD/2T H2/mimic_downloads")
-SIC_DIR = Path("/Volumes/Extreme SSD/SICdb数据库/extracted_core/salzburg-intensive-care-database-sicdb-a-freely-accessible-intensive-care-database-1.0.8")
+ROOT = Path(os.environ.get("TBI_ROOT", "./data_workspace"))
+EXT_MIMIC = Path(os.environ.get("MIMIC_RAW_DIR", "./physionet/mimic"))
+SIC_DIR = Path(os.environ.get("SICDB_DIR", "./physionet/sicdb"))
 K3_DIR = ROOT / "derived/closed_loop_v1/clinical_k3"
 P1_DIR = ROOT / "derived/closed_loop_v1/revision_gatekeepers_v1/p1_endpoints_and_sicdb"
 HIR_DIR = ROOT / "derived/closed_loop_v1/transatlantic_4db_v1/hirid"
